@@ -2,7 +2,6 @@
   "accounts": [
     {
       "id": 1,
-      "username": "guojm",
       "password": "123456",
       "tel": "13837109739",
       "email": "test@byte.com",

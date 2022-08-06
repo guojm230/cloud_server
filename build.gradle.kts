@@ -11,7 +11,7 @@ plugins {
 group = "com.example"
 version = "0.0.1"
 application {
-    mainClass.set("com.example.ApplicationKt")
+    mainClass.set("com.example.MainKt")
 
     val isDevelopment: Boolean = project.ext.has("development")
     applicationDefaultJvmArgs = listOf("-Dio.ktor.development=$isDevelopment")
@@ -19,6 +19,18 @@ application {
 
 repositories {
     mavenCentral()
+}
+
+tasks.register<Jar>("fatJar"){
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    manifest.attributes["Main-Class"] = "com.example.MainKt"
+    archiveClassifier.set("fatJar")
+    from(sourceSets.main.get().output)
+    dependsOn(configurations.runtimeClasspath)
+    from({
+        configurations.runtimeClasspath.get().filter { it.name.endsWith("jar") }.map { zipTree(it) }
+    })
+
 }
 
 dependencies {

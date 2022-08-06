@@ -7,6 +7,12 @@ import com.example.plugins.*
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import java.io.File
+import java.lang.invoke.MethodHandles
+import java.nio.file.Path
+import kotlin.io.path.absolute
+import kotlin.io.path.moveTo
+import kotlin.io.path.name
+import kotlin.io.path.pathString
 
 const val RootDirName = "cloud_server"
 
@@ -32,6 +38,13 @@ fun loadConfig(): Config {
     val input = Main::class.java.getResourceAsStream("/config.json")
     return objectMapper.readValue(input, Config::class.java)
 }
+
+fun test(f: Runnable){
+    f.run()
+}
+
+
+
 fun main() {
     init()
     embeddedServer(Netty, port = 8080, host = "0.0.0.0") {

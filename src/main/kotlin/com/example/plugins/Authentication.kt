@@ -26,7 +26,7 @@ fun Application.configAuthentication() {
             )
 
             validate{
-                if(it.payload.getClaim("username") != null){
+                if(it.payload.getClaim("id") != null){
                     JWTPrincipal(it.payload)
                 } else {
                     null

@@ -11,16 +11,34 @@ import io.ktor.client.statement.*
 import kotlin.test.*
 import io.ktor.server.testing.*
 import com.example.plugins.*
+import java.lang.invoke.MethodHandles
 
 class ApplicationTest {
-    @Test
-    fun testRoot() = testApplication {
-        application {
-            configureRouting()
+//    @Test
+//    fun testRoot() = testApplication {
+//        application {
+//            configureRouting()
+//        }
+//        client.get("/").apply {
+//            assertEquals(HttpStatusCode.OK, status)
+//            assertEquals("Hello World!", bodyAsText())
+//        }
+//    }
+
+
+
+    open class Test2{
+        private fun test() : Int{
+            return 1
         }
-        client.get("/").apply {
-            assertEquals(HttpStatusCode.OK, status)
-            assertEquals("Hello World!", bodyAsText())
-        }
+    }
+
+    @org.junit.Test
+    fun methodHandle(){
+        val method = Test2::class.java.declaredMethods.find{ it.name == "test"}!!
+        method.isAccessible = true
+        val handler = MethodHandles.lookup().unreflect(method)
+        val a: Int = handler.invoke(Test2()) as Int
+        println(a)
     }
 }

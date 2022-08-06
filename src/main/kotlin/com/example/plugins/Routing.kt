@@ -4,8 +4,8 @@ import com.auth0.jwt.JWT
 import com.auth0.jwt.algorithms.Algorithm
 import com.example.*
 import com.example.model.*
+import com.example.service.configureFileRoutes
 import io.ktor.server.routing.*
-import io.ktor.http.*
 import io.ktor.server.http.content.*
 import io.ktor.server.application.*
 import io.ktor.server.auth.*
@@ -21,10 +21,10 @@ const val CODE_DURATION = 1000*60*10    //10 min
 class VerifyCode(val code: String,val expiredTime: Long){
 
     val expired: Boolean
-        get() = System.currentTimeMillis() <= expiredTime
+        get() = System.currentTimeMillis() > expiredTime
 
     fun verify(code: String): Boolean{
-        return this.code == code && expired
+        return this.code == code && !expired
     }
 }
 
@@ -32,11 +32,14 @@ fun Application.configureRouting() {
 
     routing {
 
-        /**
-         * 上传文件
-         */
-        post("{user}/files"){
-            call.receiveMultipart()
+        configureFileRoutes()
+
+        get("/error") {
+            throw RuntimeException("error")
+        }
+
+        get("/hello"){
+            call.respondText("hello")
         }
 
         post("/token") {
@@ -59,7 +62,6 @@ fun Application.configureRouting() {
             val jwt = JWT.create()
                 .withAudience(audience)
                 .withClaim("id", account.id)
-                .withClaim("username", account.username)
                 .withClaim("tel",account.tel)
                 .withIssuer(issuer)
                 .sign(Algorithm.HMAC256(secret))
@@ -81,7 +83,7 @@ fun Application.configureRouting() {
             }
             val code = Random(System.currentTimeMillis()).nextInt(100000,1000000).toString()
             codeMap[username] = VerifyCode(code,System.currentTimeMillis()+ CODE_DURATION)
-            call.respondJson(code)
+            call.respondJson(mapOf("code" to code))
         }
 
         /**
@@ -89,25 +91,28 @@ fun Application.configureRouting() {
          * 如果为空则返回对应用户的根目录
          */
         authenticate("jwt") {
-            get("files/{user}/{path...}"){
+            get("/files/{user}/{path...}"){
                 val user = call.parameters["user"]!!
                 val path = call.parameters.getAll("path")?.joinToString("/","/")
                 val userDir = File(rootDir,user)
                 if(!userDir.exists()){
-                    call.respond(HttpStatusCode.BadRequest,404)
-                    return@get
+                    userDir.mkdir()
                 }
                 val absUserDirPath = userDir.absolutePath
                 val queryDir = File(absUserDirPath+path)
                 if(!queryDir.exists()){
-                    call.respond(HttpStatusCode.BadRequest,404)
+                    call.respond(NOT_FOUND_FILE)
                     return@get
                 }
+
                 val fileItems = (queryDir.listFiles() ?: arrayOf<File>()).map {
                     FileItem(
                         it.absolutePath.replaceFirst(absUserDirPath,""),
                         it.name,
-                        if (it.isDirectory) "directory" else it.name.substring(it.name.lastIndexOf(".")+1),
+                        it.length(),
+                        it.lastModified(),
+                        it.isDirectory,
+                        findMimeType(it),
                         if (it.isDirectory) it.list()?.size ?: 0 else 0)
                 }
                 call.respondJson(fileItems)
@@ -116,9 +121,7 @@ fun Application.configureRouting() {
             get("/users"){
                 val payload = call.principal<JWTPrincipal>()!!
                 val id =  payload.getClaim("id",Int::class)
-                val data = accounts.find { it.id == id }!!.toMap().apply {
-                    remove("password")
-                }
+                val data = accounts.find { it.id == id }!!.users
                 call.respondJson(data)
             }
         }

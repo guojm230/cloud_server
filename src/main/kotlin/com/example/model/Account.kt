@@ -5,7 +5,6 @@ package com.example.clouddemo.model
  */
 data class Account(
     val id: Int,
-    val username: String,
     val password: String,
     val tel: String,
     val email: String,
