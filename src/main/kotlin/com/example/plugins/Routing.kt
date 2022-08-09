@@ -34,15 +34,11 @@ fun Application.configureRouting() {
 
         configureFileRoutes()
 
-        get("/error") {
-            throw RuntimeException("error")
-        }
-
         get("/hello"){
             call.respondText("hello")
         }
 
-        post("/token") {
+        post("/access_token") {
             val body = call.receive<Map<String,String>>()
             val tel = body["username"] ?: ""
             val code = body["code"] ?: ""
@@ -70,7 +66,7 @@ fun Application.configureRouting() {
             }))
         }
 
-        post("/login") {
+        post("/verify_code") {
             val body = call.receive<Map<String,String>>()
             val type = call.parameters["loginType"] ?: "tel"
             val username = body["username"] ?: ""
@@ -93,7 +89,7 @@ fun Application.configureRouting() {
         authenticate("jwt") {
             get("/files/{user}/{path...}"){
                 val user = call.parameters["user"]!!
-                val path = call.parameters.getAll("path")?.joinToString("/","/")
+                val path = call.parameters.getAll("path")?.joinToString("/","/") ?: "/"
                 val userDir = File(rootDir,user)
                 if(!userDir.exists()){
                     userDir.mkdir()

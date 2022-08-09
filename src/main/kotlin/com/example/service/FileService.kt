@@ -3,6 +3,7 @@ package com.example.service
 import com.example.model.*
 import com.example.respondJson
 import com.example.rootDir
+import com.example.toFileItem
 import io.ktor.http.content.*
 import io.ktor.server.application.*
 import io.ktor.server.auth.*
@@ -14,6 +15,8 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import java.nio.file.Path
 import kotlin.io.path.*
+
+
 
 fun Routing.configureFileRoutes() {
 
@@ -63,19 +66,38 @@ fun Routing.configureFileRoutes() {
             val userDirPath = File(rootDir,userId.toString()).toPath()
             val filePath = Path.of(userDirPath.pathString,path,partFile!!.originalFileName)
             if (filePath.exists() && !overwrite){
-                call.respond(INVALID_PARAMS.copy(msg = "文件已经存在，是否覆盖"))
+                call.respond(ErrorBody(ResultCode.FILE_EXITS_ERROR,"文件已经存在，是否覆盖"))
                 return@post
             }
+            //TODO 修改为临时文件写入完成后再覆盖
+            filePath.deleteIfExists()
+
             if (!filePath.exists()){
                 filePath.createFile()
             }
+
             withContext(Dispatchers.IO) {
                 partFile!!.streamProvider().transferTo(filePath.outputStream())
             }
             call.respondJson(mapOf("success" to true))
         }
 
-        get("/{user}/file/{path...}") {
+        get("/file/item/{user}/{path...}") {
+            val user = call.parameters["user"]!!
+            val path = call.parameters.getAll("path")?.joinToString("/","/") ?: ""
+            val userDir = File(rootDir,user)
+            val file = File(userDir,path)
+
+            if (!file.exists()){
+                call.respond(ErrorBody(
+                    ResultCode.NOT_FOUND,"文件不存在"
+                ))
+                return@get
+            }
+            call.respondJson(file.toFileItem(userDir.absolutePath))
+        }
+
+        get("/file/{user}/{path...}") {
             val user = call.parameters["user"]!!
             val path = call.parameters.getAll("path")?.joinToString("/","/") ?: ""
             val userDir = File(rootDir,user)
@@ -97,7 +119,7 @@ fun Routing.configureFileRoutes() {
         /**
          * 移动文件
          */
-        post("/files/{user}/move") {
+        post("/file/{user}/move") {
             val body = call.receive<Map<String, String>>()
             val userDir = File(rootDir, call.parameters["user"]!!)
             val fromPath = body["from"]
@@ -105,7 +127,7 @@ fun Routing.configureFileRoutes() {
             val overwrite = body["overwrite"]?.toBoolean() ?: false
 
             if (fromPath == null || toPath == null) {
-                call.respond(ErrorBody(INVALID_PARAMS.code, "parameter fromPath or toPath doesn't exits"))
+                call.respond(ErrorBody(INVALID_PARAMS.code, "parameter from or to doesn't exits"))
                 return@post
             }
 
@@ -113,17 +135,23 @@ fun Routing.configureFileRoutes() {
             val toFile = File(userDir, toPath).toPath()
 
             if (!fromFile.exists() || !toFile.exists()) {
-                call.respond(NOT_FOUND_FILE)
+                call.respond(ErrorBody(ResultCode.NOT_FOUND,"文件不存在"))
                 return@post
             }
 
             if (!toFile.isDirectory()) {
-                call.respond(INVALID_PARAMS.copy(msg = "move to file must be directory"))
+                call.respond(INVALID_PARAMS.copy(msg = "参数to指定的文件必须为文件夹"))
+                return@post
+            }
+
+            val targetPath = Path.of(toFile.pathString, fromFile.name)
+            if (targetPath.exists() && !overwrite){
+                call.respond(ErrorBody(ResultCode.FILE_EXITS_ERROR,"目标文件已经存在"))
                 return@post
             }
 
             try {
-                fromFile.moveTo(Path.of(toFile.pathString, fromFile.name))
+                fromFile.moveTo(Path.of(toFile.pathString, fromFile.name),overwrite)
             } catch (e: Exception) {
                 call.application.environment.log.error("移动文件失败", e)
                 call.respondJson(UNKNOWN_SERVER_ERROR)

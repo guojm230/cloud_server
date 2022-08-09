@@ -1,5 +1,6 @@
 package com.example
 
+import com.example.model.FileItem
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.response.*
@@ -26,11 +27,22 @@ fun findMimeType(file: File): String{
         return "directory"
 
     val suffix = file.name.substring(file.name.lastIndexOf(".")+1)
-    val type = when(suffix){
+    val type = when(suffix.lowercase()){
         "txt","word" -> "text/txt"
         "avi","mp4","mkv" -> "video/${suffix}"
         "jpeg","jpg","png","gif","bmp" -> "image/${suffix}"
         else-> "unknown"
     }
     return type
+}
+
+fun File.toFileItem(absUserDirPath: String): FileItem{
+    return FileItem(
+        absolutePath.replaceFirst(absUserDirPath,""),
+        name,
+        length(),
+        lastModified(),
+        isDirectory,
+        findMimeType(this),
+        if (isDirectory) list()?.size ?: 0 else 0)
 }

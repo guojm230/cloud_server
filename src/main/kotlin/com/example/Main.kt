@@ -39,12 +39,6 @@ fun loadConfig(): Config {
     return objectMapper.readValue(input, Config::class.java)
 }
 
-fun test(f: Runnable){
-    f.run()
-}
-
-
-
 fun main() {
     init()
     embeddedServer(Netty, port = 8080, host = "0.0.0.0") {

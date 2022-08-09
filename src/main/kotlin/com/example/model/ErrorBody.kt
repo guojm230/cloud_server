@@ -9,7 +9,10 @@ import io.ktor.util.pipeline.*
 data class ErrorBody(
     val code: Int,
     val msg: String
-)
+){
+    constructor(resultCode: ResultCode,msg: String = resultCode.msg): this(resultCode.code,msg)
+
+}
 
 fun ErrorBody.toHttpStatusCode(): HttpStatusCode{
     return HttpStatusCode.fromValue(toHttpCode())
@@ -21,9 +24,13 @@ suspend fun ApplicationCall.respond(errorBody: ErrorBody){
 
 enum class ResultCode(val code: Int,val msg: String) {
 
+    NOT_FOUND(404000,"not found"),
+
     NOT_FOUND_USER(404001,"user not found"),
 
     NOT_FOUND_FILE(404002,"file doesn't exits"),
+
+    FILE_EXITS_ERROR(409001,"file already exits"),
 
     UNKNOWN_SERVER_ERROR(500000, "unknown server error")
 
@@ -31,7 +38,9 @@ enum class ResultCode(val code: Int,val msg: String) {
 
 val INVALID_PARAMS = ErrorBody(400000,"invalid params")
 
-val NOT_FOUND_USER = ErrorBody(ResultCode.NOT_FOUND_USER.code,"user doesn't exist")
+val NOT_FOUND = ErrorBody(ResultCode.NOT_FOUND,ResultCode.NOT_FOUND.msg)
+
+val NOT_FOUND_USER = ErrorBody(ResultCode.NOT_FOUND_USER)
 val INVALID_TOKEN = ErrorBody(401001,"token is invalid or expired")
 val VERIFY_CODE_ERROR = ErrorBody(400001,"verify code is error")
 
